@@ -102,14 +102,18 @@
     throw new BlockError('The profile\'s "More" menu did not open.');
   }
 
+  // "Block" buttons already on the page before the menu item was clicked.
+  // They aren't the confirmation, which LinkedIn adds afterwards.
+  let preexisting = new Set();
+
   // The confirm button: labelled exactly "Block", in a dialog if LinkedIn
-  // marks one, and never a menu item.
+  // marks one, added after the menu item was clicked, and never a menu item.
   function confirmButton() {
     const dialogs = [...document.querySelectorAll(S.dialog)].filter(visible);
     const scopes = dialogs.length ? dialogs : [document];
     for (const scope of scopes) {
       const [el] = find(S.button, L.blockConfirm, scope).filter(
-        (b) => !b.closest(S.menu) && b.getAttribute('role') !== 'menuitem',
+        (b) => !preexisting.has(b) && !b.closest(S.menu) && b.getAttribute('role') !== 'menuitem',
       );
       if (el) return el;
     }
@@ -141,6 +145,7 @@
       if (!blockItem) {
         throw new BlockError('The profile\'s "More" menu has no "Block" item. Is this your own profile?');
       }
+      preexisting = new Set(document.querySelectorAll(S.button));
       click(blockItem);
 
       const confirm = await waitFor(confirmButton, 10000, 'the "Block" confirmation button');

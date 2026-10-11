@@ -30,6 +30,11 @@ const PROFILES = {
   'dana-direct': { name: 'Dana Direct', degree: '· 1st', memberId: '555' },
   'cara-commenter': { name: 'Cara Commenter', degree: '· 1st', memberId: '557' },
   'fran-fallback': { name: 'Fran Fallback', degree: '· 2nd', memberId: '556', apiRejects: true },
+  'una-untrusted': { name: 'Una Untrusted', degree: '· 2nd', memberId: '558' },
+  // The lookup names only some other member.
+  'lou-lookup': { name: 'Lou Lookup', degree: '· 2nd', memberId: '559', lookupMismatch: true },
+  // The profile already shows an unrelated "Block" button.
+  'dee-decoy': { name: 'Dee Decoy', degree: '· 2nd', decoy: true },
 };
 
 // How long the mock profile's slow image takes, standing in for the ads and
@@ -39,6 +44,8 @@ const SLOW_RESOURCE_MS = 8000;
 const CSRF = 'ajax:1234567890';
 // Block requests the mock API accepted.
 const directBlocks = [];
+// Every block request the mock API received, accepted or not.
+const blockRequests = [];
 
 let context;
 let server;
@@ -60,6 +67,9 @@ function serve(req, res) {
     const p = PROFILES[slug];
     if (req.headers['csrf-token'] !== CSRF) return json(403, {});
     if (!p || !p.memberId) return json(404, {});
+    if (p.lookupMismatch) {
+      return json(200, { data: {}, included: [{ publicIdentifier: 'someone-else', objectUrn: 'urn:li:member:999' }] });
+    }
     return json(200, {
       data: {},
       included: [
@@ -76,6 +86,7 @@ function serve(req, res) {
         req.headers['content-type'] === 'application/json' &&
         url.searchParams.get('sduiid') === 'com.linkedin.sdui.requests.trustReporting.block';
       const payload = ok && JSON.parse(raw).serverRequest.requestedArguments.payload;
+      if (payload) blockRequests.push(payload);
       const blockee = payload && Object.values(PROFILES).find((p) => p.memberId === payload.blockeeMemberUrn.memberId);
       if (!blockee || blockee.apiRejects) {
         return res.writeHead(200).end('0:{"response":{"$type":"proto.sdui.responses.ServerRequestResponse","errors":[{"message":"nope"}]}}');
@@ -100,6 +111,7 @@ function serve(req, res) {
       .replaceAll('__SLUG__', m[1])
       .replaceAll('__DEGREE__', p.degree);
     if (p.breakMenu) body = body.replace('aria-label="More"', '');
+    if (p.decoy) body = body.replace('<main>', '<main><button onclick="log(\'clicked-decoy\')">Block</button>');
     return html(body);
   }
   res.writeHead(404).end('not found');
@@ -323,6 +335,47 @@ test('2026 layout: blocks commenters, each comment and reply with its own button
   assert.deepEqual(directBlocks.at(-1).blockeeMemberUrn, { memberId: '557' });
   assert.equal(await page.locator('.comment-cara-commenter').isHidden(), true);
   assert.equal(await page.locator('#item-company').isVisible(), true, 'the post stays');
+  await page.close();
+});
+
+test("ignores clicks from the page's own scripts", async () => {
+  const page = await context.newPage();
+  await page.goto('https://www.linkedin.com/feed-2026/');
+  await addPost(page, 'una-untrusted', 'Una Untrusted', '2nd');
+  const btn = button(page, '#item-una-untrusted');
+  await btn.waitFor();
+  const opened = [];
+  const onPage = (p) => opened.push(p);
+  context.on('page', onPage);
+  await btn.evaluate((el) => el.click());
+  await page.waitForTimeout(1500);
+  context.off('page', onPage);
+
+  assert.equal(await page.locator('.bom-toast').count(), 0);
+  assert.equal(opened.length, 0, 'no tab should open');
+  assert.ok(!blockRequests.some((b) => b.blockeeName === 'Una Untrusted'));
+  assert.equal(await page.locator('#item-una-untrusted').isVisible(), true);
+  await page.close();
+});
+
+test("falls back when the lookup doesn't name the member", async () => {
+  const page = await context.newPage();
+  await page.goto('https://www.linkedin.com/feed-2026/');
+  await addPost(page, 'lou-lookup', 'Lou Lookup', '2nd');
+  await button(page, '#item-lou-lookup').click();
+  assert.equal(await outcome(page), 'Blocked Lou Lookup.');
+  assert.deepEqual(await profileLog(page), ['blocked']);
+  assert.ok(!blockRequests.some((b) => b.blockeeMemberUrn.memberId === '999'), 'never blocks the other member');
+  await page.close();
+});
+
+test('clicks only the confirmation, not a "Block" button already on the profile', async () => {
+  const page = await context.newPage();
+  await page.goto('https://www.linkedin.com/feed-2026/');
+  await addPost(page, 'dee-decoy', 'Dee Decoy', '2nd');
+  await button(page, '#item-dee-decoy').click();
+  assert.equal(await outcome(page), 'Blocked Dee Decoy.');
+  assert.deepEqual(await profileLog(page), ['blocked']);
   await page.close();
 });
 
