@@ -1,0 +1,79 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Feed | LinkedIn (fixture, 2026 layout)</title></head>
+<body>
+  <!-- Mock of LinkedIn's October 2026 feed: generated class names, no
+       data-urn. Structure taken from a live feed. Used by test/e2e.test.mjs. -->
+  <div id="root">
+    <aside class="gflx1"><a href="https://www.linkedin.com/in/me-myself/"><p class="gfla">Me Myself</p></a></aside>
+    <main id="workspace">
+      <section aria-label="Primary content">
+        <div role="list" data-testid="mainFeed" data-component-type="LazyColumn">
+          <div role="listitem" componentkey="update-card-focusAAA" id="item-alex">
+            <div class="gflq1">
+              <a href="https://www.linkedin.com/in/fiona-follower/" class="gflf8g"><img alt=""></a>
+              <p class="gflp2">Followed by <a href="https://www.linkedin.com/in/fiona-follower/" class="gflf6r">Fiona Follower</a></p>
+            </div>
+            <div componentkey="ebbb0272">
+              <!-- Photo link: same label as the name link, no name line. -->
+              <a class="gflav" href="https://www.linkedin.com/in/alex-example/" id="alex-photo">
+                <div aria-label="Alex Example Premium Profile 2nd"><img alt=""></div>
+              </a>
+              <a tabindex="0" class="gflga1" href="https://www.linkedin.com/in/alex-example/" componentkey="ebbb0272">
+                <div class="gflaqv">
+                  <div class="gflanj" aria-label="Alex Example Premium Profile 2nd">
+                    <div class="gflkxc"><p class="gflkzy"><span>Alex Example</span><span> • 2nd</span></p></div>
+                    <p class="gflk2">Example headline</p>
+                  </div>
+                </div>
+              </a>
+            </div>
+            <p>An example post.</p>
+          </div>
+          <div role="listitem" componentkey="update-card-focusBBB" id="item-company">
+            <a href="https://www.linkedin.com/company/example-co/"><div aria-label="Example Co 1,234 followers"><p>Example Co</p></div></a>
+            <p>An example promoted post</p>
+            <div componentkey="commentsSectionContainerX">
+              <div data-testid="commentListX" data-component-type="LazyColumn">
+                <div id="replaceableComment_urn:li:comment:(activity:2,11)" componentkey="replaceableComment_urn:li:comment:(activity:2,11)" class="comment-cara-commenter">
+                  <div componentkey="CommentComponentReference_urn:li:comment:(activity:2,11)">
+                    <div>
+                      <a href="https://www.linkedin.com/in/cara-commenter/"><img alt=""></a>
+                      <div componentkey="k11">
+                        <a tabindex="0" href="https://www.linkedin.com/in/cara-commenter/">
+                          <div><p><span style="position:absolute;width:1px;height:1px;overflow:hidden">Cara Commenter 1st</span><span aria-hidden="true">Cara Commenter</span><span> • 1st</span></p><p>Analyst</p></div>
+                        </a>
+                      </div>
+                      <p>Great point, <a href="https://www.linkedin.com/in/mentioned-person/">Mentioned Person</a></p>
+                      <button aria-label="Reply">Reply</button>
+                    </div>
+                    <div id="replaceableComment_urn:li:comment:(activity:2,12)" componentkey="replaceableComment_urn:li:comment:(activity:2,12)" class="comment-rex-replier">
+                  <div componentkey="CommentComponentReference_urn:li:comment:(activity:2,12)">
+                    <div>
+                      <a href="https://www.linkedin.com/in/rex-replier/"><img alt=""></a>
+                      <div componentkey="k12">
+                        <a tabindex="0" href="https://www.linkedin.com/in/rex-replier/">
+                          <div><p><span style="position:absolute;width:1px;height:1px;overflow:hidden">Rex Replier 3rd+</span><span aria-hidden="true">Rex Replier</span><span> • 3rd+</span></p><p>Analyst</p></div>
+                        </a>
+                      </div>
+                      <p>Great point, <a href="https://www.linkedin.com/in/mentioned-person/">Mentioned Person</a></p>
+                      <button aria-label="Reply">Reply</button>
+                    </div>
+                    
+                  </div>
+                </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div role="listitem" componentkey="update-card-focusCCC" id="item-self">
+            <a href="https://www.linkedin.com/in/me-myself/"><div aria-label="Me Myself"><p>Me Myself</p></div></a>
+            <p>My own post</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

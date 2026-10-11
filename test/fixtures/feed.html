@@ -1,0 +1,58 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Feed | LinkedIn (fixture)</title></head>
+<body>
+  <!-- Mock of LinkedIn's feed markup, used by test/e2e.test.mjs. -->
+  <aside class="feed-identity-module">
+    <a class="feed-identity-module__actor-meta" href="/in/me-myself/">Me Myself</a>
+  </aside>
+  <main>
+    <div data-id="urn:li:activity:1" class="feed-shared-update-v2" id="post-jane">
+      <div class="update-components-header">
+        <a href="/in/bob-stranger/">Bob Stranger</a> likes this
+      </div>
+      <div class="update-components-actor__container">
+        <a class="update-components-actor__meta-link" href="https://www.linkedin.com/in/jane-doe/?miniProfileUrn=x">
+          <span class="update-components-actor__title"><span aria-hidden="true">Jane Doe</span><span class="visually-hidden">Jane Doe • 1st</span></span>
+        </a>
+      </div>
+      <p>Jane's post</p>
+    </div>
+    <div data-id="urn:li:activity:2" class="feed-shared-update-v2" id="post-company">
+      <div class="update-components-actor__container">
+        <a class="update-components-actor__meta-link" href="/company/acme/">
+          <span class="update-components-actor__title">Acme Corp</span>
+        </a>
+      </div>
+      <article class="comments-comment-entity" id="comment-bob">
+        <div class="comments-comment-meta">
+          <a class="comments-comment-meta__description-container" href="/in/bob-stranger/">
+            <span class="comments-comment-meta__description">Bob Stranger</span>
+          </a>
+        </div>
+        <p>Bob's comment</p>
+      </article>
+    </div>
+    <div data-id="urn:li:activity:3" class="feed-shared-update-v2" id="post-self">
+      <div class="update-components-actor__container">
+        <a class="update-components-actor__meta-link" href="/in/me-myself/">
+          <span class="update-components-actor__title">Me Myself</span>
+        </a>
+      </div>
+    </div>
+  </main>
+  <script>
+    // Lazily rendered post, like LinkedIn's infinite scroll.
+    setTimeout(() => {
+      document.querySelector('main').insertAdjacentHTML('beforeend', `
+        <div data-id="urn:li:activity:4" class="feed-shared-update-v2" id="post-bob">
+          <div class="update-components-actor__container">
+            <a class="update-components-actor__meta-link" href="/in/bob-stranger/">
+              <span class="update-components-actor__title">Bob Stranger</span>
+            </a>
+          </div>
+        </div>`);
+    }, 500);
+  </script>
+</body>
+</html>

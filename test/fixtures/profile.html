@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>(3) __NAME__ | LinkedIn</title>
+<style>.hidden{display:none}</style></head>
+<body>
+  <!-- Mock of a LinkedIn profile (October 2026 layout) and its block flow:
+       More → "Block <first name>" → "Block member" dialog → Block.
+       The test server fills in __NAME__, __FIRST__ and __DEGREE__. Actions
+       are logged to localStorage "log", which the test reads. -->
+  <main>
+    <section>
+      <p class="gflz1">__NAME__</p>
+      <span>__DEGREE__</span>
+      <!-- LinkedIn only renders this while the tab is visible. -->
+      <button aria-label="More" id="more" hidden>…</button>
+    </section>
+    <div role="menu" class="hidden" id="menu">
+      <a role="menuitem" tabindex="0" href="/messaging/compose/">Send profile in a message</a>
+      <div role="menuitem" tabindex="0">Save to PDF</div>
+      <a role="menuitem" tabindex="0" href="#" class="conn-only">Remove connection</a>
+      <a role="menuitem" tabindex="0" href="#">Report __FIRST__</a>
+      <a role="menuitem" tabindex="0" href="#" id="block-item">Block __FIRST__</a>
+    </div>
+    <!-- Like LinkedIn's ads and trackers: keeps the page from finishing
+         loading long after it's usable. -->
+    <img src="/slow.png" alt="">
+    <!-- One of the member's posts, which gets Block-O-Rama's own button.
+         The automation must not click it. -->
+    <div role="listitem">
+      <a href="/in/__SLUG__/"><div aria-label="__NAME__ Verified Profile 2nd"><p>__NAME__</p></div></a>
+      <p>A post</p>
+    </div>
+  </main>
+  <script>
+    const __log = [];
+    const log = (s) => { __log.push(s); localStorage.setItem('log', JSON.stringify(__log)); };
+    const menu = document.getElementById('menu');
+    const more = document.getElementById('more');
+    const showWhenVisible = () => { if (document.visibilityState === 'visible') more.hidden = false; };
+    document.addEventListener('visibilitychange', showWhenVisible);
+    setTimeout(showWhenVisible, 300);
+    if (document.querySelector('main span').textContent.trim() !== '· 1st') {
+      document.querySelector('.conn-only').remove();
+    }
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('.bom-block-btn')) log('clicked-extension-button');
+    }, true);
+
+    // The menu opens with a delay, like LinkedIn's.
+    more.addEventListener('click', () => {
+      setTimeout(() => menu.classList.toggle('hidden'), 150);
+    });
+
+    document.getElementById('block-item').addEventListener('click', (e) => {
+      e.preventDefault();
+      menu.classList.add('hidden');
+      // Not marked role="dialog", to cover the extension's fallback.
+      const d = document.createElement('div');
+      d.innerHTML = '<h2>Block member</h2><p>You’re about to block __NAME__</p>' +
+        '<button>Back</button><button>Block</button>';
+      d.addEventListener('click', (ev) => {
+        const b = ev.target.closest('button');
+        if (!b) return;
+        if (b.textContent === 'Block') log('blocked');
+        d.remove();
+      });
+      setTimeout(() => document.body.appendChild(d), 200);
+    });
+  </script>
+</body>
+</html>
