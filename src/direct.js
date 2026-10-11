@@ -31,8 +31,8 @@ var BOM_DIRECT = (() => {
     if (!res.ok) throw new Error(`Profile lookup failed (HTTP ${res.status}).`);
     const text = await res.text();
 
-    // Prefer the profile whose publicIdentifier is this slug; otherwise accept
-    // the response only if it names exactly one member.
+    // Only the profile whose publicIdentifier is this slug. Anything else
+    // could be a different member; the caller falls back to the profile tab.
     let found = null;
     const visit = (node) => {
       if (found || !node || typeof node !== 'object') return;
@@ -49,11 +49,7 @@ var BOM_DIRECT = (() => {
     try {
       visit(JSON.parse(text));
     } catch {
-      // Not JSON; fall through to the text match.
-    }
-    if (!found) {
-      const urns = [...new Set(text.match(/urn:li:member:\d+/g) || [])];
-      if (urns.length === 1) found = urns[0];
+      // Not JSON; no member ID.
     }
     const m = found && found.match(/^urn:li:member:(\d+)$/);
     if (!m) throw new Error('Profile lookup returned no member ID.');

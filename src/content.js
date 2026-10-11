@@ -293,6 +293,8 @@
   async function onClick(event) {
     event.preventDefault();
     event.stopPropagation();
+    // Only the user's own clicks; never a script's el.click() on the page.
+    if (!event.isTrusted) return;
     const btn = event.currentTarget;
     const { bomSlug: slug, bomUrl: url, bomName: name } = btn.dataset;
     if (pending.has(slug)) return;
