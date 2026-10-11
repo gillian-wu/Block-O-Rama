@@ -2,7 +2,7 @@
 
 Effective date: October 11, 2026
 
-Block-O-Rama is a Chrome extension that adds a block button to posts and comments on LinkedIn. This policy explains what information the extension accesses and what it does with it.
+Block-O-Rama is a Chrome extension that adds a block button to posts and comments on LinkedIn. This policy explains what information the extension accesses and what it does with it. The maker of Block-O-Rama does not want your data. At all. She wouldn't even know what to do with it.
 
 ## Summary
 
