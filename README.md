@@ -13,6 +13,10 @@ Their posts and comments disappear from the page right away, along with replies 
 3. Click **Load unpacked** and select the repository folder.
 4. Open or reload [linkedin.com](https://www.linkedin.com/feed/).
 
+## Install (Chrome Web Store)
+
+1. Visit the [Chrome Web Store](https://chromewebstore.google.com/detail/block-o-rama/jkhpanhafjibocbbcnnombppplakifmj?pli=1)
+
 ## How it works
 
 LinkedIn has no public API for blocking. Block-O-Rama sends the same requests LinkedIn's own pages send, and falls back to clicking through LinkedIn's interface if that fails:
