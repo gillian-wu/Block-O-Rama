@@ -92,10 +92,11 @@
     return nameLinks.length ? false : null;
   }
 
-  // The innermost element of a name link: <a><span><span>name</span></span></a>.
-  function nameText(link) {
+  // The outermost wrapper holding only the name link. Its parent is the
+  // flex row the name shares with the timestamp.
+  function nameWrapper(link, container) {
     let el = link;
-    while (el.children.length === 1 && el.firstElementChild.tagName === 'SPAN') el = el.firstElementChild;
+    while (el.parentElement !== container && el.parentElement.children.length === 1) el = el.parentElement;
     return el;
   }
 
@@ -126,9 +127,10 @@
         continue;
       }
       const btn = makeButton(handle);
-      // Inside the element holding the name's text, so it stays on the
-      // name's line; the link's own wrappers stack their children.
-      nameText(link).appendChild(btn);
+      // Next to the name, not inside its link: hovering the link opens
+      // Threads' profile card, which would cover the button.
+      btn.style.alignSelf = 'center';
+      nameWrapper(link, container).after(btn);
       handled.set(container, btn);
     }
   }
