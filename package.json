@@ -1,6 +1,6 @@
 {
   "name": "block-o-rama",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "private": true,
   "description": "Chrome extension that blocks people on LinkedIn and Threads in one click.",
   "license": "MIT",

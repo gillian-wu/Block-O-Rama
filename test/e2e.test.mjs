@@ -458,6 +458,9 @@ test('Threads: buttons for post, reply, quote and activity authors only', async 
     'jane.doe',
     'right after the name, in the same element',
   );
+  // Inside the link, hovering the button would open Threads' profile card.
+  assert.equal(await button(page, '#post-jane').evaluate((b) => !!b.closest('a')), false, 'outside the name link');
+  assert.equal(await button(page, '#activity-alex').evaluate((b) => !!b.closest('a')), false, 'outside the name link');
   await page.close();
 });
 
