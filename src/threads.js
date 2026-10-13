@@ -92,6 +92,13 @@
     return nameLinks.length ? false : null;
   }
 
+  // The innermost element of a name link: <a><span><span>name</span></span></a>.
+  function nameText(link) {
+    let el = link;
+    while (el.children.length === 1 && el.firstElementChild.tagName === 'SPAN') el = el.firstElementChild;
+    return el;
+  }
+
   function makeButton(handle) {
     return UI.makeButton(handle, handle, `Block @${handle}`, onClick, pending.has(handle));
   }
@@ -119,7 +126,9 @@
         continue;
       }
       const btn = makeButton(handle);
-      link.insertAdjacentElement('afterend', btn);
+      // Inside the element holding the name's text, so it stays on the
+      // name's line; the link's own wrappers stack their children.
+      nameText(link).appendChild(btn);
       handled.set(container, btn);
     }
   }
@@ -175,14 +184,15 @@
     return activity;
   }
 
-  function openMenu() {
-    return [...document.querySelectorAll(S.menu)].find(visible) || null;
-  }
-
   async function openPostMenu(container) {
     for (let attempt = 0; attempt < 2; attempt++) {
+      // Only a menu that opens now; never one already on the page.
+      const before = new Set(document.querySelectorAll(S.menu));
       click(moreButton(container));
-      const menu = await waitFor(openMenu, 4000);
+      const menu = await waitFor(
+        () => [...document.querySelectorAll(S.menu)].find((m) => !before.has(m) && visible(m)),
+        4000,
+      );
       if (menu) return menu;
       pressEscape();
       await sleep(300);
@@ -199,10 +209,13 @@
   // Blocks `handle` through the menu of `container`, one of their posts.
   async function blockFrom(container, handle) {
     const menu = await openPostMenu(container);
-    const [item] = find(S.menuItem, L.blockMenuItem, menu);
+    // Threads renders the Mute / Restrict / Block / Report group after the
+    // rest of the menu.
+    const item = await waitFor(() => find(S.menuItem, L.blockMenuItem, menu)[0], 5000);
     if (!item) {
+      const items = find(S.menuItem, /./, menu).map(labelOf).join(', ') || 'nothing';
       pressEscape();
-      const err = new BlockError('The post\'s menu has no "Block" item. Are they already blocked?');
+      const err = new BlockError(`The post's menu has no "Block" item (it shows: ${items}). Are they already blocked?`);
       err.noBlockItem = true;
       throw err;
     }

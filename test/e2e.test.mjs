@@ -453,9 +453,9 @@ test('Threads: buttons for post, reply, quote and activity authors only', async 
   assert.deepEqual(await own('activity-alex'), ['alex.actor']);
   assert.deepEqual(await own('suggest-sue'), [], 'none on follow suggestions');
   assert.equal(
-    await page.locator('#post-jane a[href$="/@jane.doe"] + .bom-block-btn').count(),
-    1,
-    'right after the name link',
+    await button(page, '#post-jane').evaluate((b) => b.previousSibling && b.previousSibling.textContent),
+    'jane.doe',
+    'right after the name, in the same element',
   );
   await page.close();
 });
@@ -545,7 +545,10 @@ test('Threads: reports a menu with no "Block" item', async () => {
   const page = await context.newPage();
   await page.goto('https://www.threads.com/');
   await button(page, '#post-nomenu').click();
-  assert.match(await outcome(page), /^Couldn't block @nina\.nomenu: The post's menu has no "Block" item\./);
+  assert.match(
+    await outcome(page),
+    /^Couldn't block @nina\.nomenu: The post's menu has no "Block" item \(it shows: Copy link, Mute, Restrict, Report\)\./,
+  );
   assert.equal(await page.locator('[role="menu"]').count(), 0, 'the menu is closed again');
   assert.equal(await page.locator('#post-nomenu').isVisible(), true);
   await page.close();
