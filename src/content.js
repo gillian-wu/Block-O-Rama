@@ -4,14 +4,14 @@
 (() => {
   const S = BOM_SELECTORS;
   const L = BOM_LABELS;
-  const BTN_CLASS = 'bom-block-btn';
+  const UI = BOM_UI;
   // Container -> its button, or false when it needs no button (company
   // author, own post). LinkedIn re-renders posts in place, which can drop the
   // button, so a container is revisited until its button is still attached.
   const handled = new WeakMap();
   // The same for author links in layouts without stable class names.
   const handledLinks = new WeakMap();
-  const HIDDEN_CLASS = 'bom-hidden';
+  const HIDDEN_CLASS = UI.HIDDEN_CLASS;
 
   let selfSlug = null;
   // Members blocked on this page, so their other posts and comments hide
@@ -65,27 +65,10 @@
   }
 
   function makeButton(slug, name, profileUrl, connected) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = BTN_CLASS;
-    btn.dataset.bomSlug = slug;
-    btn.dataset.bomUrl = profileUrl;
-    btn.dataset.bomName = name;
-    if (connected) btn.dataset.bomConnected = 'true';
     const label = name ? `Block ${name}` : 'Block this member';
-    btn.title = `${label} (Block-O-Rama)`;
-    btn.setAttribute('aria-label', label);
-    btn.innerHTML =
-      '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">' +
-      '<path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>' +
-      '</svg>';
-    btn.addEventListener('click', onClick, true);
-    // The button can sit inside the author's link; keep presses from
-    // reaching LinkedIn's handlers on it.
-    for (const type of ['pointerdown', 'mousedown', 'mouseup']) {
-      btn.addEventListener(type, (e) => e.stopPropagation());
-    }
-    if (pending.has(slug)) btn.classList.add('bom-busy');
+    const btn = UI.makeButton(slug, name, label, onClick, pending.has(slug));
+    btn.dataset.bomUrl = profileUrl;
+    if (connected) btn.dataset.bomConnected = 'true';
     return btn;
   }
 
@@ -249,28 +232,6 @@
     }
   }
 
-  function hideBlocked(slug) {
-    for (const el of document.querySelectorAll(`[data-bom-slug="${CSS.escape(slug)}"]`)) {
-      if (el.classList.contains(BTN_CLASS)) continue;
-      el.classList.add(HIDDEN_CLASS);
-    }
-  }
-
-  function setButtons(slug, fn) {
-    for (const b of document.querySelectorAll(`.${BTN_CLASS}[data-bom-slug="${CSS.escape(slug)}"]`)) {
-      fn(b);
-    }
-  }
-
-  function toast(message, isError) {
-    const el = document.createElement('div');
-    el.className = 'bom-toast' + (isError ? ' bom-toast-error' : '');
-    el.setAttribute('role', 'status');
-    el.textContent = message;
-    document.body.appendChild(el);
-    setTimeout(() => el.remove(), isError ? 9000 : 4000);
-  }
-
   // The signed-in member's numeric ID, looked up once per page.
   let selfIdPromise = null;
   function selfMemberId() {
@@ -301,8 +262,8 @@
     const who = name || slug;
 
     pending.add(slug);
-    setButtons(slug, (b) => b.classList.add('bom-busy'));
-    toast(`Blocking ${who}…`);
+    UI.setButtons(slug, (b) => b.classList.add('bom-busy'));
+    UI.toast(`Blocking ${who}…`);
 
     let res;
     try {
@@ -318,32 +279,24 @@
       if (res && !res.ok) res.error = `${res.error} (Direct block failed first: ${directErr.message})`;
     }
     pending.delete(slug);
-    setButtons(slug, (b) => b.classList.remove('bom-busy'));
+    UI.setButtons(slug, (b) => b.classList.remove('bom-busy'));
 
     if (res && res.ok) {
       blocked.add(slug);
       if (res.slug) blocked.add(res.slug);
-      hideBlocked(slug);
-      toast(
+      UI.hideMember(slug);
+      UI.toast(
         res.removedConnection
           ? `Blocked ${who} and removed them as a connection.`
           : `Blocked ${who}.`,
       );
     } else {
-      toast(`Couldn't block ${who}: ${(res && res.error) || 'unknown error'}`, true);
+      UI.toast(`Couldn't block ${who}: ${(res && res.error) || 'unknown error'}`, true);
     }
   }
 
   scan(document);
 
   // LinkedIn is a single-page app that renders posts and comments lazily.
-  let queued = false;
-  new MutationObserver(() => {
-    if (queued) return;
-    queued = true;
-    requestAnimationFrame(() => {
-      queued = false;
-      scan(document);
-    });
-  }).observe(document.documentElement, { childList: true, subtree: true });
+  UI.observe(() => scan(document));
 })();

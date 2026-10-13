@@ -1,7 +1,8 @@
 // End-to-end test: loads the unpacked extension into Chromium and serves
-// mock LinkedIn pages (test/fixtures) in place of www.linkedin.com.
+// mock LinkedIn and Threads pages (test/fixtures) in place of
+// www.linkedin.com and www.threads.com.
 //
-// The mocks encode our assumptions about LinkedIn's markup. Passing here
+// The mocks encode our assumptions about each site's markup. Passing here
 // shows the extension works against those assumptions, not that LinkedIn's
 // live markup still matches them.
 
@@ -37,6 +38,14 @@ const PROFILES = {
   'dee-decoy': { name: 'Dee Decoy', degree: '· 2nd', decoy: true },
 };
 
+// Threads profiles the mock serves, with how many posts each shows.
+const THREADS_PROFILES = {
+  'quinn.quoted': { name: 'Quinn Quoted', posts: 1 },
+  'pat.profile': { name: 'Pat Profile', posts: 2 },
+  'empty.emma': { name: 'Empty Emma', posts: 0 },
+  'ava.activity': { name: 'Ava Activity', posts: 1 },
+};
+
 // How long the mock profile's slow image takes, standing in for the ads and
 // trackers that keep LinkedIn pages loading after they're usable.
 const SLOW_RESOURCE_MS = 8000;
@@ -55,6 +64,7 @@ let tmp;
 // --host-resolver-rules, so tabs the extension opens itself are covered too
 // (Playwright's request routing doesn't reach those).
 function serve(req, res) {
+  if (req.headers.host === 'www.threads.com') return serveThreads(req, res);
   const url = new URL(req.url, 'https://www.linkedin.com');
   const { pathname } = url;
   const html = (body) =>
@@ -117,6 +127,27 @@ function serve(req, res) {
   res.writeHead(404).end('not found');
 }
 
+function serveThreads(req, res) {
+  const { pathname } = new URL(req.url, 'https://www.threads.com');
+  const html = (body) => res.writeHead(200, { 'content-type': 'text/html' }).end(body);
+  if (pathname === '/mock.js') {
+    return res.writeHead(200, { 'content-type': 'text/javascript' }).end(fixture('threads/mock.js'));
+  }
+  if (pathname === '/') return html(fixture('threads/feed.html'));
+  const m = pathname.match(/^\/@([\w.]+)\/?$/);
+  const p = m && THREADS_PROFILES[m[1]];
+  if (p) {
+    const posts = Array.from({ length: p.posts }, (_, i) => fixture('threads/profile-post.html').replaceAll('__N__', i));
+    return html(
+      fixture('threads/profile.html')
+        .replace('__POSTS__', posts.join('\n'))
+        .replaceAll('__NAME__', p.name)
+        .replaceAll('__HANDLE__', m[1]),
+    );
+  }
+  res.writeHead(404).end('not found');
+}
+
 before(async () => {
   tmp = mkdtempSync(path.join(tmpdir(), 'bom-test-'));
   const key = path.join(tmp, 'key.pem');
@@ -136,7 +167,7 @@ before(async () => {
     args: [
       `--disable-extensions-except=${root}`,
       `--load-extension=${root}`,
-      `--host-resolver-rules=MAP www.linkedin.com:443 127.0.0.1:${port}`,
+      `--host-resolver-rules=MAP www.linkedin.com:443 127.0.0.1:${port}, MAP www.threads.com:443 127.0.0.1:${port}`,
       '--ignore-certificate-errors',
       '--no-proxy-server',
     ],
@@ -383,4 +414,172 @@ test('has no access to browser storage', async () => {
   let [worker] = context.serviceWorkers();
   worker ??= await context.waitForEvent('serviceworker');
   assert.equal(await worker.evaluate(() => typeof globalThis.chrome.storage), 'undefined');
+});
+
+// --- Threads ---
+
+const threadsLog = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('threadsLog') || '[]'));
+
+// Collects the tabs opened while fn runs.
+async function tabsOpenedDuring(fn) {
+  const opened = [];
+  const onPage = (p) => opened.push(p);
+  context.on('page', onPage);
+  try {
+    await fn();
+  } finally {
+    context.off('page', onPage);
+  }
+  return opened;
+}
+
+test('Threads: buttons for post, reply, quote and activity authors only', async () => {
+  const page = await context.newPage();
+  await page.goto('https://www.threads.com/');
+  await button(page, '#post-jane').waitFor();
+  // Slugs on the buttons of the post itself, not of a post quoted in it.
+  const own = (id) =>
+    page.locator(`#${id}`).evaluate((post) =>
+      [...post.querySelectorAll('.bom-block-btn')]
+        .filter((b) => b.closest('[data-pressable-container]') === post)
+        .map((b) => b.dataset.bomSlug),
+    );
+  assert.deepEqual(await own('post-jane'), ['jane.doe']);
+  assert.equal(await button(page, '#post-jane').getAttribute('aria-label'), 'Block @jane.doe');
+  assert.deepEqual(await own('post-self'), [], 'none on your own post');
+  assert.deepEqual(await own('post-quoter'), ['quentin.quoter']);
+  assert.deepEqual(await own('quote-quinn'), ['quinn.quoted'], 'the quoted post gets its own');
+  assert.deepEqual(await own('post-repost'), ['otto.original'], 'the original author, not the reposter');
+  assert.deepEqual(await own('activity-alex'), ['alex.actor']);
+  assert.deepEqual(await own('suggest-sue'), [], 'none on follow suggestions');
+  assert.equal(
+    await page.locator('#post-jane a[href$="/@jane.doe"] + .bom-block-btn').count(),
+    1,
+    'right after the name link',
+  );
+  await page.close();
+});
+
+test("Threads: blocks through the post's own menu, without opening a tab", async () => {
+  const page = await context.newPage();
+  await page.goto('https://www.threads.com/');
+  const opened = await tabsOpenedDuring(async () => {
+    await button(page, '#post-jane').click();
+    assert.equal(await outcome(page), 'Blocked @jane.doe.');
+  });
+  assert.equal(opened.length, 0, 'no tab should open');
+  assert.equal(page.url(), 'https://www.threads.com/', 'clicking must not follow the profile link');
+  assert.ok((await threadsLog(page)).includes('blocked:jane.doe'));
+  assert.equal(await page.locator('#post-jane').isHidden(), true);
+  assert.equal(await page.locator('#reply-jane').isHidden(), true, 'their other posts hide too');
+  assert.equal(await page.locator('#post-quoter').isVisible(), true);
+  await page.close();
+});
+
+test('Threads: blocks the author of an activity item', async () => {
+  const page = await context.newPage();
+  await page.goto('https://www.threads.com/');
+  await button(page, '#activity-alex').click();
+  assert.equal(await outcome(page), 'Blocked @alex.actor.');
+  assert.ok((await threadsLog(page)).includes('blocked:alex.actor'));
+  assert.equal(await page.locator('#activity-alex').isHidden(), true);
+  await page.close();
+});
+
+test('Threads: an activity item whose menu has no "Block" falls back to their profile', async () => {
+  const page = await context.newPage();
+  await page.goto('https://www.threads.com/');
+  await button(page, '#activity-ava').click();
+  assert.equal(await outcome(page), 'Blocked @ava.activity.');
+  assert.ok((await threadsLog(page)).includes('blocked:ava.activity'));
+  assert.equal(await page.locator('#activity-ava').isHidden(), true);
+  await page.close();
+});
+
+test('Threads: a quoted post without a menu is blocked from their profile tab', async () => {
+  const page = await context.newPage();
+  await page.goto('https://www.threads.com/');
+  await button(page, '#quote-quinn').waitFor();
+  await page.locator('#quote-quinn .bom-block-btn').click();
+  assert.equal(await outcome(page), 'Blocked @quinn.quoted.');
+  assert.ok((await threadsLog(page)).includes('blocked:quinn.quoted'));
+  assert.equal(await page.locator('#quote-quinn').isHidden(), true);
+  assert.equal(await page.locator('#post-quoter').isVisible(), true, 'the quoting post stays');
+  assert.ok(!context.pages().some((p) => p.url().includes('/@quinn.quoted')), 'profile tab should close on success');
+  await page.close();
+});
+
+test('Threads: profile pages get a button by the name', async () => {
+  const page = await context.newPage();
+  await page.goto('https://www.threads.com/@pat.profile');
+  const header = page.locator('h1 .bom-block-btn');
+  await header.waitFor();
+  assert.equal(await header.getAttribute('aria-label'), 'Block @pat.profile');
+  const opened = await tabsOpenedDuring(async () => {
+    await header.click();
+    assert.equal(await outcome(page), 'Blocked @pat.profile.');
+  });
+  assert.equal(opened.length, 0, "blocks from a post on the profile; no tab");
+  assert.ok((await threadsLog(page)).includes('blocked:pat.profile'));
+  assert.equal(await page.locator('h1').isVisible(), true, 'the header stays');
+  assert.equal(await page.locator('#profile-post-0').isHidden(), true);
+  await page.close();
+});
+
+test('Threads: never confirms a dialog that names someone else', async () => {
+  const page = await context.newPage();
+  await page.goto('https://www.threads.com/');
+  await button(page, '#post-mike').click();
+  assert.equal(
+    await outcome(page),
+    `Couldn't block @mismatch.mike: Threads showed "Block someone.else?" instead of @mismatch.mike, so nothing was blocked.`,
+  );
+  const log = await threadsLog(page);
+  assert.ok(log.includes('cancelled:mismatch.mike'));
+  assert.ok(!log.includes('blocked:mismatch.mike'));
+  assert.equal(await page.locator('#post-mike').isVisible(), true);
+  await page.close();
+});
+
+test('Threads: reports a menu with no "Block" item', async () => {
+  const page = await context.newPage();
+  await page.goto('https://www.threads.com/');
+  await button(page, '#post-nomenu').click();
+  assert.match(await outcome(page), /^Couldn't block @nina\.nomenu: The post's menu has no "Block" item\./);
+  assert.equal(await page.locator('[role="menu"]').count(), 0, 'the menu is closed again');
+  assert.equal(await page.locator('#post-nomenu').isVisible(), true);
+  await page.close();
+});
+
+test('Threads: reports failure and leaves the profile open', async () => {
+  const page = await context.newPage();
+  await page.goto('https://www.threads.com/');
+  await page.evaluate(() => {
+    document.querySelector('[data-column-scrollable]').insertAdjacentHTML('beforeend', `
+      <div data-pressable-container="true" id="post-emma">
+        <a href="https://www.threads.com/@empty.emma" role="link"><span>empty.emma</span></a>
+        <a href="https://www.threads.com/@empty.emma/post/E1" role="link"><time>1h</time></a>
+      </div>`);
+  });
+  await button(page, '#post-emma').click();
+  assert.match(
+    await outcome(page),
+    /^Couldn't block @empty\.emma: Timed out waiting for a post by @empty\.emma on their profile\. The profile is open/,
+  );
+  assert.ok(context.pages().some((p) => p.url().includes('/@empty.emma')));
+  assert.equal(await page.locator('#post-emma').isVisible(), true);
+  await page.close();
+});
+
+test("Threads: ignores clicks from the page's own scripts", async () => {
+  const page = await context.newPage();
+  await page.goto('https://www.threads.com/');
+  const btn = button(page, '#post-repost');
+  await btn.waitFor();
+  await btn.evaluate((el) => el.click());
+  await page.waitForTimeout(1000);
+  assert.equal(await page.locator('.bom-toast').count(), 0);
+  assert.equal(await page.locator('[role="menu"]').count(), 0);
+  assert.equal(await page.locator('#post-repost').isVisible(), true);
+  await page.close();
 });
