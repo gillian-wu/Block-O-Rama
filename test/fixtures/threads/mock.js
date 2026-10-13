@@ -27,12 +27,17 @@
         m.className = 'mock-layer';
         const block = more.dataset.noBlock ? '' : '<div role="menuitem" tabindex="0" class="block-item"><span>Block</span></div>';
         m.innerHTML = `<div role="menu">
-          <div role="group"><div role="menuitem" tabindex="0"><span>Copy link</span></div></div>
-          <div role="group"><div role="menuitem" tabindex="0"><span>Mute</span></div>
-          <div role="menuitem" tabindex="0"><span>Restrict</span></div>${block}
-          <div role="menuitem" tabindex="0"><span>Report</span></div></div></div>`;
+          <div role="group"><div role="menuitem" tabindex="0"><span>Copy link</span></div></div></div>`;
         m.dataset.author = who;
         document.body.appendChild(m);
+        // Like Threads', the Mute / Restrict / Block / Report group renders
+        // after the rest of the menu.
+        setTimeout(() => {
+          m.querySelector('[role="menu"]').insertAdjacentHTML('beforeend', `
+          <div role="group"><div role="menuitem" tabindex="0"><span>Mute</span></div>
+          <div role="menuitem" tabindex="0"><span>Restrict</span></div>${block}
+          <div role="menuitem" tabindex="0"><span>Report</span></div></div>`);
+        }, 400);
       }, 120);
       return;
     }
