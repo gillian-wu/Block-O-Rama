@@ -51,6 +51,21 @@ var BOM_UI = (() => {
     setTimeout(() => el.remove(), isError ? 9000 : 4000);
   }
 
+  // Asks background.js to block from a profile tab. After the extension is
+  // reloaded or updated, this script stays on open pages but can no longer
+  // reach it: chrome.runtime is gone, or sendMessage throws "Extension
+  // context invalidated".
+  async function sendToBackground(msg) {
+    const stale = { ok: false, error: 'Block-O-Rama was updated or reloaded. Refresh this page and try again.' };
+    if (!globalThis.chrome?.runtime?.id) return stale;
+    try {
+      return await chrome.runtime.sendMessage(msg);
+    } catch (err) {
+      const text = String((err && err.message) || err);
+      return /context invalidated/i.test(text) ? stale : { ok: false, error: text };
+    }
+  }
+
   // Calls fn() whenever the page changes, at most once per frame.
   function observe(fn) {
     let queued = false;
@@ -64,5 +79,5 @@ var BOM_UI = (() => {
     }).observe(document.documentElement, { childList: true, subtree: true });
   }
 
-  return { BTN_CLASS, HIDDEN_CLASS, makeButton, hideMember, setButtons, toast, observe };
+  return { BTN_CLASS, HIDDEN_CLASS, makeButton, hideMember, setButtons, toast, sendToBackground, observe };
 })();

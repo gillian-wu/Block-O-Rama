@@ -284,11 +284,7 @@
       }
     }
     // Nothing on this page to block from: use their profile.
-    try {
-      return await chrome.runtime.sendMessage({ type: 'bom:block-threads', handle });
-    } catch (err) {
-      return { ok: false, error: String((err && err.message) || err) };
-    }
+    return UI.sendToBackground({ type: 'bom:block-threads', handle });
   }
 
   async function onClick(event) {
