@@ -44,6 +44,7 @@ const THREADS_PROFILES = {
   'pat.profile': { name: 'Pat Profile', posts: 2 },
   'empty.emma': { name: 'Empty Emma', posts: 0 },
   'ava.activity': { name: 'Ava Activity', posts: 1 },
+  'alex.actor': { name: 'Alex Actor', posts: 1 },
 };
 
 // How long the mock profile's slow image takes, standing in for the ads and
@@ -476,11 +477,15 @@ test("Threads: blocks through the post's own menu, without opening a tab", async
   await page.close();
 });
 
-test('Threads: blocks the author of an activity item', async () => {
+test("Threads: blocks an activity item's author from their profile, not the item's menu", async () => {
   const page = await context.newPage();
   await page.goto('https://www.threads.com/');
-  await button(page, '#activity-alex').click();
-  assert.equal(await outcome(page), 'Blocked @alex.actor.');
+  const opened = await tabsOpenedDuring(async () => {
+    await button(page, '#activity-alex').click();
+    assert.equal(await outcome(page), 'Blocked @alex.actor.');
+  });
+  assert.equal(opened.length, 1, 'their profile opens');
+  assert.equal(await page.locator('[role="menu"]').count(), 0, "the item's own menu (only Delete on Threads) isn't used");
   assert.ok((await threadsLog(page)).includes('blocked:alex.actor'));
   assert.equal(await page.locator('#activity-alex').isHidden(), true);
   await page.close();
@@ -567,7 +572,7 @@ test('Threads: reports failure and leaves the profile open', async () => {
   await button(page, '#post-emma').click();
   assert.match(
     await outcome(page),
-    /^Couldn't block @empty\.emma: Timed out waiting for a post by @empty\.emma on their profile\. The profile is open/,
+    /^Couldn't block @empty\.emma: On their profile: Timed out waiting for a post by @empty\.emma\. The profile is open/,
   );
   assert.ok(context.pages().some((p) => p.url().includes('/@empty.emma')));
   assert.equal(await page.locator('#post-emma').isVisible(), true);

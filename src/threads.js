@@ -2,9 +2,9 @@
 // activity item on Threads, and on profile pages next to the name. A click
 // drives Threads' own menu on the page: More → Block → Block.
 //
-// When the page has no post by that person with a menu (a quoted post, a
-// profile with nothing loaded), background.js opens their profile in a tab
-// and calls window.__bomThreadsBlock() there.
+// When the page has no post by that person with a menu (a quoted post, an
+// activity item, whose menu only offers "Delete"), background.js opens their
+// profile in a tab and calls window.__bomThreadsBlock() there.
 
 (() => {
   // Injected again into the profile tab the fallback opens; set up once.
@@ -168,20 +168,17 @@
     scanProfiles(root);
   }
 
-  // A post by `handle` with a "More" button, preferring `preferred`, then
-  // posts over activity items.
+  // A post by `handle` with a "More" button, preferring `preferred`.
+  // Activity items don't count: their menu only offers "Delete".
   function postWithMenu(handle, preferred) {
     const candidates = [preferred, ...document.querySelectorAll(S.post)];
-    let activity = null;
     for (const c of candidates) {
       if (!c || c.classList.contains(UI.HIDDEN_CLASS)) continue;
       const author = authorOf(c);
-      const more = author && author.handle === handle && moreButton(c);
-      if (!more || !visible(more)) continue;
-      if (author.post) return c;
-      activity ??= c;
+      const more = author && author.post && author.handle === handle && moreButton(c);
+      if (more && visible(more)) return c;
     }
-    return activity;
+    return null;
   }
 
   function openMenus() {
@@ -226,9 +223,7 @@
     if (!item) {
       const items = openMenus().flatMap((m) => find(S.menuItem, /./, m)).map(labelOf).join(', ') || 'nothing';
       pressEscape();
-      const err = new BlockError(`The post's menu has no "Block" item (it shows: ${items}). Are they already blocked?`);
-      err.noBlockItem = true;
-      throw err;
+      throw new BlockError(`The post's menu has no "Block" item (it shows: ${items}). Are they already blocked?`);
     }
     // "Block" buttons already on the page aren't the confirmation.
     const preexisting = new Set(document.querySelectorAll(S.button));
@@ -268,11 +263,11 @@
       if (handleOf(location.href, 'profile') !== handle) {
         throw new BlockError(`Threads sent the tab to ${location.pathname} instead of the profile. Are you signed in?`);
       }
-      const post = await waitFor(() => postWithMenu(handle), 20000, `a post by @${handle} on their profile`);
+      const post = await waitFor(() => postWithMenu(handle), 20000, `a post by @${handle}`);
       await blockFrom(post, handle);
       return { ok: true };
     } catch (err) {
-      return { ok: false, error: message(err) };
+      return { ok: false, error: `On their profile: ${message(err)}` };
     }
   };
 
@@ -283,8 +278,7 @@
         await blockFrom(post, handle);
         return { ok: true };
       } catch (err) {
-        // An activity item's menu may not offer "Block"; their profile will.
-        if (!(err.noBlockItem && !authorOf(post).post)) return { ok: false, error: message(err) };
+        return { ok: false, error: message(err) };
       }
     }
     // Nothing on this page to block from: use their profile.

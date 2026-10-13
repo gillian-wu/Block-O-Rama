@@ -105,7 +105,8 @@ async function blockInTab(url, senderTab, origin, files, func, args = []) {
     // Leave the tab open and in front so the person can be blocked
     // by hand, and the failure is visible.
     await chrome.tabs.update(tab.id, { active: true }).catch(() => {});
-    result.error = `${result.error.replace(/\.?$/, '.')} The profile is open in a new tab so you can finish by hand.`;
+    const sentence = /[.?!]$/.test(result.error) ? result.error : `${result.error}.`;
+    result.error = `${sentence} The profile is open in a new tab so you can finish by hand.`;
   }
   return result;
 }
