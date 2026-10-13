@@ -271,11 +271,7 @@
       res = { ok: true, removedConnection: btn.dataset.bomConnected === 'true' };
     } catch (directErr) {
       // Fall back to opening the profile and using LinkedIn's menus.
-      try {
-        res = await chrome.runtime.sendMessage({ type: 'bom:block', url });
-      } catch (err) {
-        res = { ok: false, error: String((err && err.message) || err) };
-      }
+      res = await UI.sendToBackground({ type: 'bom:block', url });
       if (res && !res.ok) res.error = `${res.error} (Direct block failed first: ${directErr.message})`;
     }
     pending.delete(slug);
