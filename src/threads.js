@@ -184,16 +184,19 @@
     return activity;
   }
 
+  function openMenus() {
+    return [...document.querySelectorAll(S.menu)].filter(visible);
+  }
+
+  // Opens the post's "More" menu. Threads may first show a placeholder and
+  // then replace it with a new menu element, so callers look the menu up
+  // again rather than keep the one found here.
   async function openPostMenu(container) {
     for (let attempt = 0; attempt < 2; attempt++) {
       // Only a menu that opens now; never one already on the page.
       const before = new Set(document.querySelectorAll(S.menu));
       click(moreButton(container));
-      const menu = await waitFor(
-        () => [...document.querySelectorAll(S.menu)].find((m) => !before.has(m) && visible(m)),
-        4000,
-      );
-      if (menu) return menu;
+      if (await waitFor(() => openMenus().some((m) => !before.has(m)), 4000)) return;
       pressEscape();
       await sleep(300);
     }
@@ -208,12 +211,20 @@
 
   // Blocks `handle` through the menu of `container`, one of their posts.
   async function blockFrom(container, handle) {
-    const menu = await openPostMenu(container);
+    // "Block" items already on the page aren't this menu's.
+    const before = new Set(document.querySelectorAll(S.menuItem));
+    await openPostMenu(container);
     // Threads renders the Mute / Restrict / Block / Report group after the
     // rest of the menu.
-    const item = await waitFor(() => find(S.menuItem, L.blockMenuItem, menu)[0], 5000);
+    const item = await waitFor(
+      () =>
+        openMenus()
+          .flatMap((m) => find(S.menuItem, L.blockMenuItem, m))
+          .find((el) => !before.has(el)),
+      5000,
+    );
     if (!item) {
-      const items = find(S.menuItem, /./, menu).map(labelOf).join(', ') || 'nothing';
+      const items = openMenus().flatMap((m) => find(S.menuItem, /./, m)).map(labelOf).join(', ') || 'nothing';
       pressEscape();
       const err = new BlockError(`The post's menu has no "Block" item (it shows: ${items}). Are they already blocked?`);
       err.noBlockItem = true;

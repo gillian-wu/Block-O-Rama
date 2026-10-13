@@ -26,10 +26,15 @@
         const m = document.createElement('div');
         m.className = 'mock-layer';
         const block = more.dataset.noBlock ? '' : '<div role="menuitem" tabindex="0" class="block-item"><span>Block</span></div>';
-        m.innerHTML = `<div role="menu">
-          <div role="group"><div role="menuitem" tabindex="0"><span>Copy link</span></div></div></div>`;
+        // Threads first shows an empty placeholder menu, then replaces it
+        // with a new menu element.
+        m.innerHTML = '<div role="menu"><div role="progressbar">Loading…</div></div>';
         m.dataset.author = who;
         document.body.appendChild(m);
+        setTimeout(() => {
+          m.innerHTML = `<div role="menu">
+          <div role="group"><div role="menuitem" tabindex="0"><span>Copy link</span></div></div></div>`;
+        }, 200);
         // Like Threads', the Mute / Restrict / Block / Report group renders
         // after the rest of the menu.
         setTimeout(() => {
