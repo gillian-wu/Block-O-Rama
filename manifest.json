@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Block-O-Rama",
-  "version": "0.4.0",
-  "description": "Block LinkedIn members in one click from their posts and comments.",
+  "version": "0.5.0",
+  "description": "Block people on LinkedIn and Threads in one click from their posts and comments.",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
@@ -13,7 +13,8 @@
     "scripting"
   ],
   "host_permissions": [
-    "https://www.linkedin.com/*"
+    "https://www.linkedin.com/*",
+    "https://www.threads.com/*"
   ],
   "background": {
     "service_worker": "src/background.js"
@@ -25,8 +26,24 @@
       ],
       "js": [
         "src/selectors.js",
+        "src/ui.js",
         "src/direct.js",
         "src/content.js"
+      ],
+      "css": [
+        "src/content.css"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.threads.com/*"
+      ],
+      "js": [
+        "src/dom.js",
+        "src/ui.js",
+        "src/threads-selectors.js",
+        "src/threads.js"
       ],
       "css": [
         "src/content.css"
